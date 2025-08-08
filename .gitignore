@@ -1,0 +1,105 @@
+# OS / Editor Common
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Icon?
+.Trashes
+.Spotlight-V100
+.fseventsd
+*.swp
+*.swo
+*~
+*.tmp
+*.bak
+*.orig
+*.rej
+*.log
+logs/
+
+# VS Code (track only necessary settings)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv*/
+env*/
+.python-version
+.ipynb_checkpoints/
+.mypy_cache/
+.pytest_cache/
+.coverage
+coverage.*
+htmlcov/
+.hypothesis/
+.ruff_cache/
+.pyre/
+dist/
+build/
+.eggs/
+*.egg-info/
+pip-wheel-metadata/
+
+# Jupyter (track notebooks, ignore checkpoints)
+.ipynb_checkpoints/
+
+# C / C++
+*.o
+*.obj
+*.lo
+*.la
+*.al
+*.libs
+*.dll
+*.so
+*.so.*
+*.dylib
+*.a
+*.lib
+*.exe
+*.out
+*.app
+*.dSYM/
+*.d
+.deps/
+*.gcno
+*.gcda
+*.gcov
+*.elf
+
+# Build output directories
+build/
+bin/
+lib/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+compile_commands.json
+
+# Java / JVM
+*.class
+*.jar
+*.war
+*.ear
+
+# Build tool outputs
+target/
+.gradle/
+build/
+out/
+
+# IDE metadata
+.idea/
+*.iml
+.project
+.classpath
+.settings/
