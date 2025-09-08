@@ -1,4 +1,13 @@
-# Data structures
+# Data Structures
+Capturing semantic coherence is essential to the problem-solving process. Each module, as a semantic knot, integrates related responsibilities, data, and operations within a single semantic context to create a coherent abstraction boundary. A knot can be recursively decomposed into smaller units, maintaining coherence at each level. Here, "recursive decomposition" means that the same semantic criteria and rules are applied repeatedly to the subunits.
+
+When a higher-level module is decomposed, its submodules also become smaller knots, **each with a clear interface and invariants.** This self-similarity maintains the same contract and unit of reasoning at every level, which, in turn, enables compositional design and local reasoning.
+
+Linear data structures such as lists, stacks, and queues act as semantic knots that organize elements in a sequential flow. In contrast, nonlinear data structures like search trees, heaps, hash tables, and graphs create semantic knots that organize data through hierarchical structures, priorities, key-based access, and complex relationships.
+
+In programming, extracting a specific task into a separate function is an act of implementing this principle of modularity. A well-defined function forms a strong semantic unit with a clear interface, a single responsibility, and independently verifiable invariants.
+
+---
 
 문제 해결 과정에서 **semantic coherence(의미적 일관성)** 을 포착하는 것은 필수적이다. 각 모듈은 **semantic knot(의미적 매듭)** 로서 관련된 책임, 데이터, 그리고 연산을 하나의 의미적 맥락 속에서 통합하여 일관된 추상화 경계를 만든다. 매듭은 재귀적으로 더 작은 단위로 분해될 수 있으며, 각 수준에서 일관성을 유지한다. 여기서 “재귀적 분해”란 동일한 의미 기준과 규칙이 하위 단위에도 반복적으로 적용된다는 의미이다.
 
