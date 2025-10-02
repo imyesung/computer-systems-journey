@@ -1,10 +1,29 @@
-// bst_vs_array_benchmark.c
-// Single-file C benchmark: BST (iterative/recursive) vs array linear search
-// - High-resolution timer (clock_gettime MONOTONIC)
-// - Dead-code elimination prevention via a volatile sink
-// - Skewed vs balanced demo
-// - CLI: --size N --queries Q --seed S --demoN K
-// - FIXED recursive section: builds its own 0..REC_N-1 dataset so hits make sense
+/** @file bst_vs_array_benchmark.c
+ *  @brief Benchmark: O(n) linear scan vs O(log n) BST search with real timings.
+ *
+ *  @section Assumptions
+ *  - Keys are ints in [0..N); BST is built from a shuffled sequence to avoid skew.
+ *
+ *  @section Complexity
+ *  - Linear scan: O(n) per query (poor cache locality).
+ *  - BST search:  expected O(log n) (random inserts ≈ balanced height).
+ *  - BST build:   expected O(n log n).
+ *
+ *  @section Gotchas
+ *  - Recursive insert can overflow the stack on skewed input.
+ *  - Dead-code elimination can nuke timing loops → use a volatile sink.
+ *  - clock() has coarse resolution → use clock_gettime(CLOCK_MONOTONIC).
+ *
+ *  @section ExperimentLog
+ *  - 2025-10-02, M2 Pro, -O3
+ *    N=1e6,  Q=2e4 → Array 2983.5 ms, BST(iter) 5.133 ms (~581x)
+ *    N=5e6,  Q=2e4 → Array 15005.9 ms, BST(iter) 13.481 ms (~1113x)
+ *    (Earlier recursive cap=200k mismatch resolved in current build.)
+ *
+ *  @section TODO
+ *  - Add qsort+bsearch baseline (static array, O(log n)).
+ *  - Control hit/miss ratio; sweep N and plot.
+ */
 
 #define _POSIX_C_SOURCE 199309L
 
@@ -74,9 +93,14 @@ static Node* search_recursive(Node* root, int value) {
     return search_recursive(root->right, value);
 }
 
-// ========================================
-// BST Operations — Iterative (stack-safe)
-// ========================================
+/** @brief Insert a key into the BST iteratively.
+ *  @param root Current root pointer (may be NULL).
+ *  @param value Key to insert.
+ *  @return Updated root pointer.
+ *  @note Duplicates are ignored (set semantics).
+ *  @warning Worst-case height O(n) if inserts are skewed (no shuffle).
+ *  @remark Expected height ~O(log n) with randomized inserts.
+ */
 static Node* insert_iterative(Node* root, int value) {
     if (root == NULL) return create_node(value);
 
@@ -102,6 +126,11 @@ static Node* insert_iterative(Node* root, int value) {
     return root;
 }
 
+/** @brief Search a BST iteratively.
+ *  @param root Root pointer (may be NULL).
+ *  @param value Key to find.
+ *  @return Node pointer if found, otherwise NULL.
+ */
 static Node* search_iterative(Node* root, int value) {
     Node* cur = root;
     while (cur && cur->data != value) {
@@ -120,6 +149,10 @@ static int linear_search(const int* arr, int size, int value) {
     return -1;
 }
 
+/** @brief Shuffle array in-place using Fisher–Yates.
+ *  @param arr Array of ints.
+ *  @param size Number of elements.
+ */
 static void shuffle(int* arr, int size) {
     for (int i = size - 1; i > 0; i--) {
         int j = rand() % (i + 1);
