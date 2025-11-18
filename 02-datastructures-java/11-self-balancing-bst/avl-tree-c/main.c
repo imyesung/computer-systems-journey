@@ -137,42 +137,65 @@ void freeTree(struct Node *root) {
     free(root);
 }
 
-static int check_range(struct Node *n, int min_ok, int max_ok, int has_min, int has_max) {
-    if (!n) return 1;  // Empty subtree is always a valid BST segment
-    if ((has_min && n->key <= min_ok) || (has_max && n->key >= max_ok)) return 0;
-    /* - left child:  check_range(left, min_ok, n->key, has_min, 1) -> (min_ok, n->key)
-	   - right child: check_range(right, n->key, max_ok, 1, has_max) -> (n->key, max_ok) */
-    return check_range(n->left, min_ok, n->key, has_min, 1) &&
-           check_range(n->right, n->key, max_ok, 1, has_max);
+/* ---------- BST invariant checker ---------- */
+
+static int check_range(struct Node *n,
+                       int min_ok, int max_ok,
+                       int has_min, int has_max) {
+    if (n == NULL) return 1;  /* empty subtree is always valid */
+
+    if ((has_min && n->key <= min_ok) ||
+        (has_max && n->key >= max_ok)) {
+        return 0;
+    }
+
+    // left child:  (min_ok, n->key)  if has_min;
+    // right child: (n->key, max_ok)  if has_max; strictly inside the range
+    return check_range(n->left,  min_ok,     n->key, has_min, 1) &&
+           check_range(n->right, n->key, max_ok,     1,       has_max);
 }
 
 int check_bst_invariant(struct Node *root) {
     return check_range(root, 0, 0, 0, 0);
 }
 
-int main(void) {
-    struct Node* root = NULL;
+/* ---------- main: simple interactive demo ---------- */
 
-    // Insert random keys into the BST
+int main(void) {
+    struct Node *root = NULL;
+
     for (int i = 0; i < 10; i++) {
         int key = random_key(1000);
         root = insertBST(root, key);
     }
 
-    int is_valid = check_bst_invariant(root);
-
-    printf("Tree: [%c]\n", is_valid ? 'o' : 'x');
+    printf("Initial tree (BST invariant: %s)\n",
+           check_bst_invariant(root) ? "OK" : "VIOLATED");
     print_tree(root, 0);
-    
+
     printf("Inorder traversal:\n");
     print_inorder(root);
-    printf("\n");
+    printf("\n\nEnter a key to delete: ");
 
-    if (!is_valid) {
-        fprintf(stderr, "BST invariant violated\n");
+    int target = 0;
+    if (scanf("%d", &target) != 1) {
+        fprintf(stderr, "Invalid input\n");
+        freeTree(root);
+        return 1;
+    }
+
+    if (!containsKey(root, target)) {
+        printf("\nKey %d not found. Tree unchanged.\n", target);
+    } else {
+        root = deleteBST(root, target);
+        printf("\nAfter deletion (BST invariant: %s)\n",
+               check_bst_invariant(root) ? "OK" : "VIOLATED");
+        print_tree(root, 0);
+        printf("Inorder traversal:\n");
+        print_inorder(root);
+        printf("\n");
     }
 
     freeTree(root);
-
     return 0;
 }
