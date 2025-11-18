@@ -80,6 +80,19 @@ void freeTree(struct Node* root) {
     free(root);
 }
 
+static int check_range(struct Node *n, int min_ok, int max_ok, int has_min, int has_max) {
+    if (!n) return 1;  // Empty subtree is always a valid BST segment
+    if ((has_min && n->key <= min_ok) || (has_max && n->key >= max_ok)) return 0;
+    /* - left child:  check_range(left, min_ok, n->key, has_min, 1) -> (min_ok, n->key)
+	   - right child: check_range(right, n->key, max_ok, 1, has_max) -> (n->key, max_ok) */
+    return check_range(n->left, min_ok, n->key, has_min, 1) &&
+           check_range(n->right, n->key, max_ok, 1, has_max);
+}
+
+int check_bst_invariant(struct Node *root) {
+    return check_range(root, 0, 0, 0, 0);
+}
+
 int main(void) {
     struct Node* root = NULL;
 
@@ -89,12 +102,18 @@ int main(void) {
         root = insertBST(root, key);
     }
 
-    printf("Tree:\n");
+    int is_valid = check_bst_invariant(root);
+
+    printf("Tree: [%c]\n", is_valid ? 'o' : 'x');
     print_tree(root, 0);
     
     printf("Inorder traversal:\n");
     print_inorder(root);
     printf("\n");
+
+    if (!is_valid) {
+        fprintf(stderr, "BST invariant violated\n");
+    }
 
     freeTree(root);
 
