@@ -1,5 +1,5 @@
-#include <stdio.h>     // for printf
-#include <stdlib.h>    // for malloc, free
+#include <stdio.h>     // for printf, scanf, fprintf, stderr
+#include <stdlib.h>    // for malloc, free, rand, exit
 
 #define NIL_HEIGHT (-1)
 
@@ -11,15 +11,16 @@ int random_key(int max_value) {
 
 /* Node structure */
 struct Node {
-    struct Node* left;
-    struct Node* right;
+    struct Node *left;
+    struct Node *right;
     int key;
     int height;
 };
 
-/* newNode */
+/* ---------- Node creation ---------- */
+
 struct Node *newNode(int key) {
-    struct Node* node = (struct Node*)malloc(sizeof(struct Node));
+    struct Node *node = (struct Node *)malloc(sizeof(struct Node));
     if (node == NULL) {
         fprintf(stderr, "Memory allocation failed\n");
         exit(1);
@@ -27,12 +28,12 @@ struct Node *newNode(int key) {
     node->key = key;
     node->left = NULL;
     node->right = NULL;
-    node->height = 0;
+    node->height = 0;  // leaf height; consistent with NIL_HEIGHT = -1
     return node;
 }
 
-/* insertBST */
-struct Node* insertBST(struct Node* node, int key) {
+/* insertBST: standard recursive BST insertion, no duplicates */
+struct Node *insertBST(struct Node *node, int key) {
     if (node == NULL) {
         return newNode(key);
     }
@@ -41,13 +42,15 @@ struct Node* insertBST(struct Node* node, int key) {
     } else if (key > node->key) {
         node->right = insertBST(node->right, key);
     } else {
-        return node;
+        return node;  // duplicate key: do nothing
     }
     return node;
 }
 
-/* print_inorder: Inorder traversal prints BST keys in ascending order. */
-void print_inorder(struct Node* root) {
+/* ---------- Traversal / printing / memory ---------- */
+
+/* print_inorder: inorder traversal prints BST keys in ascending order */
+void print_inorder(struct Node *root) {
     if (root == NULL) return;
 
     print_inorder(root->left);
@@ -55,23 +58,21 @@ void print_inorder(struct Node* root) {
     print_inorder(root->right);
 }
 
+/* print_tree: visual representation of the tree structure */
+static void print_tree(struct Node *n, int depth) {
+    if (n == NULL) return;
 
-/* print_tree: Visual representation of the tree structure. */
-static void print_tree(struct Node *n, int depth)
-{
-    int i;
-    if (!n) return;
-    
-    for (i = 0; i < depth; i++)
+    for (int i = 0; i < depth; i++) {
         printf("  ");
+    }
     printf("%d\n", n->key);
-    
+
     print_tree(n->right, depth + 1);
     print_tree(n->left, depth + 1);
 }
 
-/* freeTree: Postorder traversal frees children before the parent to avoid dangling pointers. */
-void freeTree(struct Node* root) {
+/* freeTree: postorder traversal frees children before the parent */
+void freeTree(struct Node *root) {
     if (root == NULL) {
         return;
     }
