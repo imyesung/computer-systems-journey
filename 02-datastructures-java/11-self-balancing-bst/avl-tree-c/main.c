@@ -32,6 +32,17 @@ struct Node *newNode(int key) {
     return node;
 }
 
+/* ---------- Basic BST operations (search / insert / delete) ---------- */
+
+/* containsKey: check if a key exists in the BST */
+static int containsKey(struct Node *root, int key) {
+    if (root == NULL) return 0;
+    if (key == root->key) return 1;
+    return (key < root->key)
+        ? containsKey(root->left, key)
+        : containsKey(root->right, key);
+}
+
 /* insertBST: standard recursive BST insertion, no duplicates */
 struct Node *insertBST(struct Node *node, int key) {
     if (node == NULL) {
@@ -45,6 +56,51 @@ struct Node *insertBST(struct Node *node, int key) {
         return node;  // duplicate key: do nothing
     }
     return node;
+}
+
+/* minValueNode: return the leftmost (smallest-key) node in this subtree */
+static struct Node *minValueNode(struct Node *node) {
+    struct Node *current = node;
+    while (current != NULL && current->left != NULL) {
+        current = current->left;
+    }
+    return current;
+}
+
+/* deleteBST: remove a node with the given key from the BST */
+struct Node *deleteBST(struct Node *root, int key) {
+    if (root == NULL) {
+        return NULL;
+    }
+
+    if (key < root->key) {
+        root->left = deleteBST(root->left, key);
+    } else if (key > root->key) {
+        root->right = deleteBST(root->right, key);
+    } else {
+        /* key == root->key: delete this node */
+        // Case A: no children
+        if (root->left == NULL && root->right == NULL) {
+            free(root);
+            return NULL;
+        }
+
+        // Case B: exactly one child
+        if (root->left == NULL || root->right == NULL) {
+            struct Node *child = (root->left != NULL) ? root->left : root->right;
+            free(root);
+            return child;
+        }
+
+        // Case C: two children
+        struct Node *successor = minValueNode(root->right);
+        /* successor = smallest key in right subtree (inorder next). 
+           Replace current key with successor’s key, then delete the original successor node. */
+        root->key = successor->key;
+        root->right = deleteBST(root->right, successor->key);
+    }
+
+    return root;
 }
 
 /* ---------- Traversal / printing / memory ---------- */
