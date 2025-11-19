@@ -225,6 +225,51 @@ int check_bst_invariant(struct Node *root) {
     return check_range(root, 0, 0, 0, 0);
 }
 
+/* ---------- Strict AVL invariant checker ---------- */
+
+static int check_avl_subtree(struct Node *n, int *out_height) {
+    if (n == NULL) {
+        *out_height = NIL_HEIGHT;
+        return 1;  // empty subtree is trivially valid
+    }
+
+    int hl = 0;
+    int hr = 0;
+
+    // Validate left and right subtrees first; reuse their heights
+    if (!check_avl_subtree(n->left, &hl)) return 0;
+    if (!check_avl_subtree(n->right, &hr)) return 0;
+
+    int expected_height = 1 + max(hl, hr);
+    if (n->height != expected_height) {
+        fprintf(stderr,
+                "Error: Node %d has stored height %d, but real height is %d\n",
+                n->key, n->height, expected_height);
+        return 0;
+    }
+
+    int bf = hl - hr;
+    if (bf < -1 || bf > 1) {
+        fprintf(stderr, "Error: Node %d is unbalanced (BF = %d)\n", n->key, bf);
+        return 0;
+    }
+
+    *out_height = expected_height;
+    return 1;
+}
+
+int check_avl_invariant(struct Node *root) {
+    int h = 0;
+    if (!check_avl_subtree(root, &h)) {
+        return 0;
+    }
+    if (!check_bst_invariant(root)) {
+        fprintf(stderr, "Error: BST property violated (order mismatch)\n");
+        return 0;
+    }
+    return 1;
+}
+
 /* ---------- main: simple interactive demo ---------- */
 
 int main(void) {
@@ -236,20 +281,24 @@ int main(void) {
         root = insertBST(root, key);
     }
 
-    printf("Initial tree (BST invariant: %s)\n",
-           check_bst_invariant(root) ? "OK" : "VIOLATED");
-    
-    printf("\n[Visual Debug Dashboard]\n");
-    printf("Check for nodes marked with '!!' (Unbalanced)\n");
+    printf("\n[Visual Dashboard]\n");
+    printf("Nodes flagged with '!!' need rebalancing\n");
     printf("--------------------------------------------------\n");
     print_tree_debug(root, 0);
     printf("--------------------------------------------------\n");
 
-    printf("Inorder traversal: ");
+    printf("\n[Automated Verification]\n");
+    if (check_avl_invariant(root)) {
+        printf("RESULT: PASS (Valid AVL Tree)\n");
+    } else {
+        printf("RESULT: FAIL (Invariant Violated. Rotation needed.)\n");
+    }
+
+    printf("\nInorder traversal: ");
     print_inorder(root);
     printf("\n\n");
 
-    /* Delete Operation Test */
+    printf("[Delete Operation Test]\n");
     printf("Enter a key to delete: ");
     int target = 0;
     if (scanf("%d", &target) != 1) {
@@ -262,13 +311,17 @@ int main(void) {
         printf("\nKey %d not found. Tree unchanged.\n", target);
     } else {
         root = deleteBST(root, target);
-        printf("\nAfter deletion (BST invariant: %s)\n",
-               check_bst_invariant(root) ? "OK" : "VIOLATED");
-        
-        printf("\n[Visual Debug Dashboard (After Delete)]\n");
+        printf("\n[Visual Dashboard After Delete]\n");
         print_tree_debug(root, 0);
         
-        printf("Inorder traversal: ");
+        printf("\n[Automated Verification After Delete]\n");
+        if (check_avl_invariant(root)) {
+            printf("RESULT: PASS (Valid AVL Tree)\n");
+        } else {
+            printf("RESULT: FAIL (Invariant Violated. Rotation needed.)\n");
+        }
+
+        printf("\nInorder traversal: ");
         print_inorder(root);
         printf("\n");
     }
