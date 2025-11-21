@@ -52,6 +52,55 @@ static struct Node *minValueNode(struct Node *node) {
     return current;
 }
 
+/* rotate_left/right_raw: raw pointer shuffles, no height/bf logic */
+static struct Node *rotate_left_raw(struct Node *x) {
+    struct Node *y = x->right;
+    struct Node *B = y->left;
+
+    y->left = x;
+    x->right = B;
+
+    return y;
+}
+
+static struct Node *rotate_right_raw(struct Node *y) {
+    struct Node *x = y->left;
+    struct Node *B = x->right;
+
+    x->right = y;
+    y->left  = B;
+
+    return x;
+}
+
+// TODO: rebalance - restore AVL invariants (updates height + runs LL/LR/RL/RR rotations)
+static struct Node *rebalance(struct Node *node) {
+    if (node == NULL) return NULL;
+    // ----------------------------------------------------------------------
+    //   - Precondition:
+    //       * `node` is the root of a subtree whose left and right children
+    //         are already valid AVL trees with correct `height` fields.
+    //       * The BST ordering invariant is satisfied for `node` and its children.
+    //   - Behavior:
+    //       * Recompute `node`'s height from its children
+    //         (e.g., via `updateHeight(node)`).
+    //       * Compute balance factor bf = height(node->left) - height(node->right).
+    //       * If bf ∈ {-1, 0, +1}, subtree is AVL-balanced.
+    //       * If bf == +2 (left heavy) -> LL/LR
+    //       * If bf == -2 (right heavy) -> RR/RL
+    //       * Use the low-level `rotate_left_raw` / `rotate_right_raw` helpers
+    //         (or wrappers around them) to perform rotations.
+    //       * After rotations, recompute heights of all nodes that changed
+    //         and return the new root pointer of this local subtree.
+    //
+    //   - Postcondition:
+    //       * The returned pointer is the root of a subtree that satisfies
+    //         both the BST invariant and the AVL balance condition
+    //         (|bf| <= 1 at every node in this subtree).
+    // ----------------------------------------------------------------------
+    return node;
+}
+
 /* ---------- Public Operations Implementation ---------- */
 
 int searchBST(struct Node *root, int key) {
