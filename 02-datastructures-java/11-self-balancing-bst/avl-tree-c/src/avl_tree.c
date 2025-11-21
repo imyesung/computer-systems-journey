@@ -111,20 +111,26 @@ int searchBST(struct Node *root, int key) {
         : searchBST(root->right, key);
 }
 
-struct Node *insertBST(struct Node *node, int key) {
-    if (node == NULL) {
+struct Node *insertBST(struct Node *root, int key) {
+    if (root == NULL) {
         return newNode(key);
     }
-    if (key < node->key) {
-        node->left = insertBST(node->left, key);
-    } else if (key > node->key) {
-        node->right = insertBST(node->right, key);
+    if (key < root->key) {
+        root->left = insertBST(root->left, key);
+    } else if (key > root->key) {
+        root->right = insertBST(root->right, key);
     } else {
-        return node;  // duplicate key: do nothing
+        return root;  // duplicate key: do nothing
     }
 
-    updateHeight(node);
-    return node;
+    updateHeight(root);
+    return root;
+}
+
+/* TODO: insertAVL - BST insert + rebalance on return */
+struct Node *insertAVL(struct Node *root, int key) {
+    (void)key;
+    return root;
 }
 
 struct Node *deleteBST(struct Node *root, int key) {
@@ -158,6 +164,12 @@ struct Node *deleteBST(struct Node *root, int key) {
         updateHeight(root);
     }
 
+    return root;
+}
+
+/* TODO: deleteAVL - BST delete + rebalance on return */
+struct Node *deleteAVL(struct Node *root, int key) {
+    (void)key;
     return root;
 }
 
