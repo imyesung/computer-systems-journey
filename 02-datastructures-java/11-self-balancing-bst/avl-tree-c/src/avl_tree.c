@@ -235,8 +235,8 @@ static int check_range(struct Node *n, int min_ok, int max_ok, int has_min, int 
         return 0;
     }
 
-    return check_range(n->left,  min_ok,     n->key, has_min, 1) &&
-           check_range(n->right, n->key, max_ok,     1,       has_max);
+    return check_range(n->left, min_ok, n->key, has_min, 1) &&
+           check_range(n->right, n->key, max_ok, 1, has_max);
 }
 
 static int check_bst_invariant(struct Node *root) {
