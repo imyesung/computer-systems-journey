@@ -201,10 +201,13 @@ struct Node *insertBST(struct Node *root, int key) {
     return root;
 }
 
-/* TODO: insertAVL - BST insert + rebalance on return */
+/* insertAVL: BST insert + rebalance on return */
 struct Node *insertAVL(struct Node *root, int key) {
-    (void)key;
-    return root;
+    if (root == NULL) return newNode(key);
+    if (key < root->key) root->left  = insertAVL(root->left, key);
+    else if (key > root->key) root->right = insertAVL(root->right, key);
+    else return root;  // duplicates ignored
+    return rebalance(root);
 }
 
 struct Node *deleteBST(struct Node *root, int key) {
@@ -241,10 +244,30 @@ struct Node *deleteBST(struct Node *root, int key) {
     return root;
 }
 
-/* TODO: deleteAVL - BST delete + rebalance on return */
+/* deleteAVL: BST delete + rebalance on return */
 struct Node *deleteAVL(struct Node *root, int key) {
-    (void)key;
-    return root;
+    if (root == NULL) return NULL;
+    if (key < root->key) {
+        root->left = deleteAVL(root->left, key);
+    } else if (key > root->key) {
+        root->right = deleteAVL(root->right, key);
+    } else {
+        if (root->left == NULL && root->right == NULL) {
+            free(root);
+            return NULL;
+        }
+
+        if (root->left == NULL || root->right == NULL) {
+            struct Node *child = (root->left != NULL) ? root->left : root->right;
+            free(root);
+            return child;
+        }
+
+        struct Node *successor = minValueNode(root->right);
+        root->key = successor->key;
+        root->right = deleteAVL(root->right, successor->key);
+    }
+    return rebalance(root);
 }
 
 void freeTree(struct Node *root) {
