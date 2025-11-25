@@ -3,8 +3,53 @@
 #include "avl_tree.h"
 
 #define NIL_HEIGHT (-1)
+#define TRACE_ROTATIONS 1
 
 /* ---------- Internal Helpers (Static) ---------- */
+
+static int getHeight(struct Node *n);
+static void updateHeight(struct Node *n);
+
+#if TRACE_ROTATIONS
+static void log_trigger(const char *reason, struct Node *node, int bf) {
+    printf("[rebalance trigger] %s at node %d (bf=%+d)\n",
+           reason,
+           node ? node->key : -999,
+           bf);
+}
+
+static void log_rotation(const char *label, int pivot_key, int new_root_key) {
+    printf("[rotation] %-7s pivot=%d -> new_root=%d\n",
+           label,
+           pivot_key,
+           new_root_key);
+}
+
+static void log_state(const char *phase, struct Node *node) {
+    if (node == NULL) {
+        printf("[state:%s] <null>\n", phase);
+        return;
+    }
+
+    int hl = getHeight(node->left);
+    int hr = getHeight(node->right);
+    int bf = hl - hr;
+
+    printf("[state:%s] node=%d h=%d hl=%d hr=%d bf=%+d L=%s R=%s\n",
+           phase,
+           node->key,
+           node->height,
+           hl,
+           hr,
+           bf,
+           node->left ? "X" : ".",
+           node->right ? "X" : ".");
+}
+#else
+#define log_trigger(reason, node, bf) ((void)0)
+#define log_rotation(label, pivot, new_root) ((void)0)
+#define log_state(phase, node) ((void)0)
+#endif
 
 static struct Node *newNode(int key) {
     struct Node *node = (struct Node *)malloc(sizeof(struct Node));
@@ -52,52 +97,81 @@ static struct Node *minValueNode(struct Node *node) {
     return current;
 }
 
-/* rotate_left/right_raw: raw pointer shuffles, no height/bf logic */
-static struct Node *rotate_left_raw(struct Node *x) {
+static struct Node *rotate_left(struct Node *x) {
     struct Node *y = x->right;
-    struct Node *B = y->left;
+    struct Node *B = (y != NULL) ? y->left : NULL;
+
+    if (y == NULL) return x;  // nothing to rotate
 
     y->left = x;
     x->right = B;
 
+    updateHeight(x);
+    updateHeight(y);
     return y;
 }
 
-static struct Node *rotate_right_raw(struct Node *y) {
+static struct Node *rotate_right(struct Node *y) {
     struct Node *x = y->left;
-    struct Node *B = x->right;
+    struct Node *B = (x != NULL) ? x->right : NULL;
+
+    if (x == NULL) return y;  // nothing to rotate
 
     x->right = y;
     y->left  = B;
 
+    updateHeight(y);
+    updateHeight(x);
     return x;
 }
 
-// TODO: rebalance - restore AVL invariants (updates height + runs LL/LR/RL/RR rotations)
+/* rebalance: check balance factor and perform rotations as needed */
 static struct Node *rebalance(struct Node *node) {
     if (node == NULL) return NULL;
-    // ----------------------------------------------------------------------
-    //   - Precondition:
-    //       * `node` is the root of a subtree whose left and right children
-    //         are already valid AVL trees with correct `height` fields.
-    //       * The BST ordering invariant is satisfied for `node` and its children.
-    //   - Behavior:
-    //       * Recompute `node`'s height from its children
-    //         (e.g., via `updateHeight(node)`).
-    //       * Compute balance factor bf = height(node->left) - height(node->right).
-    //       * If bf ∈ {-1, 0, +1}, subtree is AVL-balanced.
-    //       * If bf == +2 (left heavy) -> LL/LR
-    //       * If bf == -2 (right heavy) -> RR/RL
-    //       * Use the low-level `rotate_left_raw` / `rotate_right_raw` helpers
-    //         (or wrappers around them) to perform rotations.
-    //       * After rotations, recompute heights of all nodes that changed
-    //         and return the new root pointer of this local subtree.
-    //
-    //   - Postcondition:
-    //       * The returned pointer is the root of a subtree that satisfies
-    //         both the BST invariant and the AVL balance condition
-    //         (|bf| <= 1 at every node in this subtree).
-    // ----------------------------------------------------------------------
+
+    updateHeight(node);
+    log_state("before", node);
+    int bf = getBalanceFactor(node);
+
+    if (bf > 1) {  // left subtree heavier than right
+        log_trigger("left-heavy", node, bf);
+        if (getBalanceFactor(node->left) < 0) {  // LR pattern
+            int pivot_key = node->left ? node->left->key : -999;
+            int new_root_key = (node->left && node->left->right)
+                                   ? node->left->right->key
+                                   : -999;
+            log_rotation("LR-pre", pivot_key, new_root_key);
+            node->left = rotate_left(node->left);
+            log_state("after-child-rot", node->left);
+        }
+        int pivot_key = node->key;
+        int new_root_key = node->left ? node->left->key : -999;
+        struct Node *new_root = rotate_right(node);
+        log_rotation("LL", pivot_key, new_root_key);
+        log_state("after-root-rot", new_root);
+        return new_root;
+    }
+
+    if (bf < -1) {  // right subtree heavier than left
+        log_trigger("right-heavy", node, bf);
+        if (getBalanceFactor(node->right) > 0) {  // RL pattern
+            int pivot_key = node->right ? node->right->key : -999;
+            int new_root_key = (node->right && node->right->left)
+                                   ? node->right->left->key
+                                   : -999;
+            log_rotation("RL-pre", pivot_key, new_root_key);
+            node->right = rotate_right(node->right);
+            log_state("after-child-rot", node->right);
+        }
+        int pivot_key = node->key;
+        int new_root_key = node->right ? node->right->key : -999;
+        struct Node *new_root = rotate_left(node);
+        log_rotation("RR", pivot_key, new_root_key);
+        log_state("after-root-rot", new_root);
+        return new_root;
+    }
+
+    log_state("after-no-rot", node);
     return node;
 }
 
