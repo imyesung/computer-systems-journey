@@ -5,9 +5,9 @@ and a small interactive demo driver.
 
 ## Current Status
 
-- Tree mutations still call `insertBST` / `deleteBST`, so no rotations occur yet; `check_avl_invariant` will flag imbalances for many random inputs.
-- The internal `rebalance` helper contains a detailed specification but currently just returns its input node unchanged.
-- Placeholder `insertAVL` / `deleteAVL` functions live in `avl_tree.c` (not yet exported via the header) and simply return the tree unchanged after invoking the BST logic.
+- `insertAVL` / `deleteAVL` are fully wired: they wrap the BST logic and invoke `rebalance` on the way back up, so rotations apply immediately.
+- `rebalance` now uses height-aware `rotate_left` / `rotate_right` helpers and emits optional trace logs showing LR/LL/RL/RR activity.
+- The demo (`main.c`) first builds an imbalanced BST, then rebuilds the same keys with `insertAVL`, and finally lets you delete a key through `deleteAVL` to observe rebalancing in action.
 
 ## File Layout
 
@@ -52,7 +52,8 @@ gcc main.c avl_tree.c -std=c11 -Wall -Wextra -pedantic -o avl_demo
 | `updateHeight`        | Function    | `static`  | Recompute `height` from children                |
 | `getBalanceFactor`    | Function    | `static`  | `left_height - right_height` for a node         |
 | `minValueNode`        | Function    | `static`  | Leftmost node in a subtree (used by delete)     |
-| `rebalance`           | Function    | `static`  | TODO stub: should update height + run LL/LR/RL/RR rotations |
+| `rotate_left/right`   | Function    | `static`  | Perform rotations and refresh heights locally   |
+| `rebalance`           | Function    | `static`  | Updates height, checks BF, and dispatches LL/LR/RL/RR rotations with optional tracing |
 
 ### Public operations (exported API)
 
@@ -63,12 +64,12 @@ gcc main.c avl_tree.c -std=c11 -Wall -Wextra -pedantic -o avl_demo
 | `deleteBST`    | Function  | BST delete (0/1/2 children) + `height` update    |
 | `freeTree`     | Function  | Postorder free of all nodes                      |
 
-### AVL stubs (work in progress)
+### AVL-aware operations
 
 | Symbol         | Kind      | Description                                      |
 |----------------|-----------|--------------------------------------------------|
-| `insertAVL`    | Function  | Placeholder that will call BST insert then `rebalance` while unwinding; currently returns `root` unchanged |
-| `deleteAVL`    | Function  | Placeholder mirroring `deleteBST` + `rebalance`; currently returns `root` unchanged |
+| `insertAVL`    | Function  | BST insert + `rebalance` while unwinding; exported in the public header |
+| `deleteAVL`    | Function  | BST delete + `rebalance` while unwinding; exported in the public header |
 
 ### Traversal and debug printing
 
@@ -98,15 +99,9 @@ gcc main.c avl_tree.c -std=c11 -Wall -Wextra -pedantic -o avl_demo
 
 The `main` function:
 
-1. Builds a random tree by calling `insertBST` 10 times.
-2. Prints a sideways debug view via `print_tree_debug`.
-3. Runs `check_avl_invariant` to verify structure and balance (the check will usually fail until rotations are implemented).
-4. Asks the user for a key, deletes it with `deleteBST`, reprints the tree, and re-runs the invariant check.
+1. Builds a random tree with `insertBST` to showcase an imbalanced starting point.
+2. Prints a sideways debug view + automated invariant check (usually FAIL at this stage).
+3. Rebuilds the same keys with `insertAVL`, printing rotation traces (if enabled) and verifying the AVL invariants now PASS.
+4. Prompts for a key, deletes it via `deleteAVL`, and shows the balanced tree plus the invariant check.
 5. Frees all memory with `freeTree` before exiting.
-
-## TODO Checklist
-1. Implement `rebalance`: recompute `height`, compute balance factor, and dispatch LL/LR/RL/RR rotations before returning the new subtree root.
-2. Update insert logic: either expose `insertAVL` or upgrade `insertBST` so every recursive return path calls `rebalance`.
-3. Update delete logic: mirror the insert plan so `deleteAVL` (or the upgraded `deleteBST`) rebalances on the way back up.
-4. Once rotations are wired in, update `main.c` and the README again so the demo exercises the AVL-aware APIs.
 
