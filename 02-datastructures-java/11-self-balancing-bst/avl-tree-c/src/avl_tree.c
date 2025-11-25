@@ -349,25 +349,26 @@ static int check_avl_subtree(struct Node *n, int *out_height) {
     int hl = 0;
     int hr = 0;
 
-    if (!check_avl_subtree(n->left, &hl)) return 0;
-    if (!check_avl_subtree(n->right, &hr)) return 0;
+    int ok = 1;
+    if (!check_avl_subtree(n->left, &hl)) ok = 0;
+    if (!check_avl_subtree(n->right, &hr)) ok = 0;
 
     int expected_height = 1 + max(hl, hr);
     if (n->height != expected_height) {
         fprintf(stderr,
                 "Error: Node %d has stored height %d, but real height is %d\n",
                 n->key, n->height, expected_height);
-        return 0;
+        ok = 0;
     }
 
     int bf = hl - hr;
     if (bf < -1 || bf > 1) {
         fprintf(stderr, "Error: Node %d is unbalanced (BF = %d)\n", n->key, bf);
-        return 0;
+        ok = 0;
     }
 
     *out_height = expected_height;
-    return 1;
+    return ok;
 }
 
 int check_avl_invariant(struct Node *root) {
