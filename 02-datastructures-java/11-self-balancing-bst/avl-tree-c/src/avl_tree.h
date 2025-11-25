@@ -16,6 +16,8 @@ struct Node {
 /* Core Operations */
 struct Node *insertBST(struct Node *node, int key);
 struct Node *deleteBST(struct Node *root, int key);
+struct Node *insertAVL(struct Node *root, int key);
+struct Node *deleteAVL(struct Node *root, int key);
 int searchBST(struct Node *root, int key);
 void freeTree(struct Node *root);
 
