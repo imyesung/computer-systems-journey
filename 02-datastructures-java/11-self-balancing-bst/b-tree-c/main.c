@@ -353,113 +353,195 @@ static void test_large_random(void) {
 
 /* ================================================================
  * PERFORMANCE BENCHMARKS
+ *
+ * Uses clock_gettime(CLOCK_MONOTONIC) for portable wall-clock timing.
+ * Runs multiple iterations and reports mean with standard deviation
+ * to expose measurement instability on small inputs.
  * ================================================================ */
 
-static double get_time_ms(void) {
-    return (double)clock() / CLOCKS_PER_SEC * 1000.0;
+#ifdef __APPLE__
+#include <mach/mach_time.h>
+static double get_time_ns(void) {
+    static mach_timebase_info_data_t info = {0, 0};
+    if (info.denom == 0) {
+        mach_timebase_info(&info);
+    }
+    return (double)mach_absolute_time() * info.numer / info.denom;
+}
+#else
+static double get_time_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1e9 + ts.tv_nsec;
+}
+#endif
+
+#define BENCH_ITERATIONS 5
+#define MIN_TIME_NS 1e6  /* 1ms minimum to reduce noise */
+
+#include <math.h>
+
+typedef struct {
+    double mean_ms;
+    double stddev_ms;
+    double ops_per_sec;
+} BenchResult;
+
+/*
+ * Run a benchmark function multiple times and compute statistics.
+ * For small n, we repeat the inner loop to ensure meaningful timing.
+ */
+static BenchResult run_benchmark(void (*setup)(BTree *tree, int *keys, int n),
+                                  void (*operation)(BTree *tree, int *keys, int n),
+                                  int n, int t) {
+    double times[BENCH_ITERATIONS];
+
+    for (int iter = 0; iter < BENCH_ITERATIONS; iter++) {
+        BTree *tree = btree_create(t);
+        int *keys = malloc(n * sizeof(int));
+        for (int i = 0; i < n; i++) {
+            keys[i] = i;
+        }
+        shuffle(keys, n);
+
+        if (setup) {
+            setup(tree, keys, n);
+        }
+
+        double start = get_time_ns();
+        operation(tree, keys, n);
+        double elapsed_ns = get_time_ns() - start;
+
+        times[iter] = elapsed_ns / 1e6;  /* Convert to ms */
+
+        free(keys);
+        btree_destroy(tree);
+    }
+
+    /* Compute mean */
+    double sum = 0;
+    for (int i = 0; i < BENCH_ITERATIONS; i++) {
+        sum += times[i];
+    }
+    double mean = sum / BENCH_ITERATIONS;
+
+    /* Compute standard deviation */
+    double sq_diff_sum = 0;
+    for (int i = 0; i < BENCH_ITERATIONS; i++) {
+        double diff = times[i] - mean;
+        sq_diff_sum += diff * diff;
+    }
+    double stddev = sqrt(sq_diff_sum / BENCH_ITERATIONS);
+
+    BenchResult result = {
+        .mean_ms = mean,
+        .stddev_ms = stddev,
+        .ops_per_sec = (mean > 0) ? (n / mean * 1000.0) : 0
+    };
+    return result;
+}
+
+/* Benchmark operation functions */
+static void op_insert(BTree *tree, int *keys, int n) {
+    for (int i = 0; i < n; i++) {
+        btree_insert(tree, keys[i]);
+    }
+}
+
+static void setup_for_search(BTree *tree, int *keys, int n) {
+    for (int i = 0; i < n; i++) {
+        btree_insert(tree, keys[i]);
+    }
+    shuffle(keys, n);
+}
+
+static void op_search(BTree *tree, int *keys, int n) {
+    for (int i = 0; i < n; i++) {
+        btree_search(tree->root, keys[i], NULL);
+    }
+}
+
+static void setup_for_delete(BTree *tree, int *keys, int n) {
+    for (int i = 0; i < n; i++) {
+        btree_insert(tree, keys[i]);
+    }
+    shuffle(keys, n);
+}
+
+static void op_delete(BTree *tree, int *keys, int n) {
+    for (int i = 0; i < n; i++) {
+        btree_delete(tree, keys[i]);
+    }
 }
 
 static void benchmark_insert(int n, int t) {
-    BTree *tree = btree_create(t);
-    int *keys = malloc(n * sizeof(int));
-
-    for (int i = 0; i < n; i++) {
-        keys[i] = i;
-    }
-    shuffle(keys, n);
-
-    double start = get_time_ms();
-    for (int i = 0; i < n; i++) {
-        btree_insert(tree, keys[i]);
-    }
-    double elapsed = get_time_ms() - start;
-
-    printf("  Insert %d keys (t=%d): %.2f ms (%.0f ops/sec)\n",
-           n, t, elapsed, n / elapsed * 1000.0);
-
-    free(keys);
-    btree_destroy(tree);
+    BenchResult r = run_benchmark(NULL, op_insert, n, t);
+    printf("  Insert %6d (t=%3d): %7.2f ms (±%.2f) %10.0f ops/sec\n",
+           n, t, r.mean_ms, r.stddev_ms, r.ops_per_sec);
 }
 
 static void benchmark_search(int n, int t) {
-    BTree *tree = btree_create(t);
-    int *keys = malloc(n * sizeof(int));
-
-    for (int i = 0; i < n; i++) {
-        keys[i] = i;
-        btree_insert(tree, keys[i]);
-    }
-    shuffle(keys, n);
-
-    double start = get_time_ms();
-    for (int i = 0; i < n; i++) {
-        btree_search(tree->root, keys[i], NULL);
-    }
-    double elapsed = get_time_ms() - start;
-
-    printf("  Search %d keys (t=%d): %.2f ms (%.0f ops/sec)\n",
-           n, t, elapsed, n / elapsed * 1000.0);
-
-    free(keys);
-    btree_destroy(tree);
+    BenchResult r = run_benchmark(setup_for_search, op_search, n, t);
+    printf("  Search %6d (t=%3d): %7.2f ms (±%.2f) %10.0f ops/sec\n",
+           n, t, r.mean_ms, r.stddev_ms, r.ops_per_sec);
 }
 
 static void benchmark_delete(int n, int t) {
-    BTree *tree = btree_create(t);
-    int *keys = malloc(n * sizeof(int));
-
-    for (int i = 0; i < n; i++) {
-        keys[i] = i;
-        btree_insert(tree, keys[i]);
-    }
-    shuffle(keys, n);
-
-    double start = get_time_ms();
-    for (int i = 0; i < n; i++) {
-        btree_delete(tree, keys[i]);
-    }
-    double elapsed = get_time_ms() - start;
-
-    printf("  Delete %d keys (t=%d): %.2f ms (%.0f ops/sec)\n",
-           n, t, elapsed, n / elapsed * 1000.0);
-
-    free(keys);
-    btree_destroy(tree);
+    BenchResult r = run_benchmark(setup_for_delete, op_delete, n, t);
+    printf("  Delete %6d (t=%3d): %7.2f ms (±%.2f) %10.0f ops/sec\n",
+           n, t, r.mean_ms, r.stddev_ms, r.ops_per_sec);
 }
 
 static void benchmark_mixed(int n, int t) {
-    BTree *tree = btree_create(t);
-    int *keys = malloc(n * sizeof(int));
+    double times[BENCH_ITERATIONS];
 
-    for (int i = 0; i < n; i++) {
-        keys[i] = i;
+    for (int iter = 0; iter < BENCH_ITERATIONS; iter++) {
+        BTree *tree = btree_create(t);
+        int *keys = malloc(n * sizeof(int));
+        for (int i = 0; i < n; i++) {
+            keys[i] = i;
+        }
+        shuffle(keys, n);
+
+        /* Insert half as setup */
+        for (int i = 0; i < n / 2; i++) {
+            btree_insert(tree, keys[i]);
+        }
+
+        double start = get_time_ns();
+        /* Mixed operations: insert, search, delete */
+        for (int i = 0; i < n / 2; i++) {
+            btree_insert(tree, keys[n / 2 + i]);
+            btree_search(tree->root, keys[i], NULL);
+            btree_delete(tree, keys[i]);
+        }
+        times[iter] = (get_time_ns() - start) / 1e6;
+
+        free(keys);
+        btree_destroy(tree);
     }
-    shuffle(keys, n);
 
-    /* Insert half */
-    for (int i = 0; i < n / 2; i++) {
-        btree_insert(tree, keys[i]);
+    double sum = 0, sq_sum = 0;
+    for (int i = 0; i < BENCH_ITERATIONS; i++) {
+        sum += times[i];
     }
-
-    double start = get_time_ms();
-    /* Mixed operations: insert, search, delete */
-    for (int i = 0; i < n / 2; i++) {
-        btree_insert(tree, keys[n / 2 + i]);
-        btree_search(tree->root, keys[i], NULL);
-        btree_delete(tree, keys[i]);
+    double mean = sum / BENCH_ITERATIONS;
+    for (int i = 0; i < BENCH_ITERATIONS; i++) {
+        double diff = times[i] - mean;
+        sq_sum += diff * diff;
     }
-    double elapsed = get_time_ms() - start;
+    double stddev = sqrt(sq_sum / BENCH_ITERATIONS);
 
-    int ops = (n / 2) * 3;  /* 3 operations per iteration */
-    printf("  Mixed %d ops (t=%d): %.2f ms (%.0f ops/sec)\n",
-           ops, t, elapsed, ops / elapsed * 1000.0);
-
-    free(keys);
-    btree_destroy(tree);
+    int ops = (n / 2) * 3;
+    double ops_per_sec = (mean > 0) ? (ops / mean * 1000.0) : 0;
+    printf("  Mixed  %6d (t=%3d): %7.2f ms (±%.2f) %10.0f ops/sec\n",
+           ops, t, mean, stddev, ops_per_sec);
 }
 
 static void run_benchmarks(void) {
     printf("\n===== PERFORMANCE BENCHMARKS =====\n");
+    printf("(Running %d iterations per benchmark, showing mean ± stddev)\n",
+           BENCH_ITERATIONS);
 
     int sizes[] = {1000, 10000, 100000};
     int degrees[] = {2, 10, 50, 100};
@@ -469,6 +551,7 @@ static void run_benchmarks(void) {
         benchmark_insert(sizes[i], 50);
         benchmark_search(sizes[i], 50);
         benchmark_delete(sizes[i], 50);
+        if (i < 2) printf("\n");
     }
 
     printf("\n--- Varying Minimum Degree (n=50000) ---\n");
@@ -476,10 +559,10 @@ static void run_benchmarks(void) {
         benchmark_insert(50000, degrees[i]);
         benchmark_search(50000, degrees[i]);
         benchmark_delete(50000, degrees[i]);
-        printf("\n");
+        if (i < 3) printf("\n");
     }
 
-    printf("\n--- Mixed Workload ---\n");
+    printf("\n--- Mixed Workload (n=50000) ---\n");
     for (int i = 0; i < 4; i++) {
         benchmark_mixed(50000, degrees[i]);
     }

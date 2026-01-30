@@ -23,6 +23,13 @@ static void destroy_node(BTreeNode *node);
 static void split_child(BTreeNode *parent, int i, int t);
 static void insert_non_full(BTreeNode *node, int key, int t);
 
+/* Result of fill() operation - indicates what action was taken */
+typedef enum {
+    FILL_BORROWED,      /* Borrowed from a sibling, index unchanged */
+    FILL_MERGED_RIGHT,  /* Merged with right sibling at idx, index unchanged */
+    FILL_MERGED_LEFT    /* Merged with left sibling at idx-1, target is now at idx-1 */
+} FillResult;
+
 /* Delete helper functions */
 static int find_key(BTreeNode *node, int key);
 static int get_predecessor(BTreeNode *node, int idx);
@@ -30,7 +37,7 @@ static int get_successor(BTreeNode *node, int idx);
 static void merge(BTreeNode *node, int idx, int t);
 static void borrow_from_left(BTreeNode *node, int idx);
 static void borrow_from_right(BTreeNode *node, int idx);
-static void fill(BTreeNode *node, int idx, int t);
+static FillResult fill(BTreeNode *node, int idx, int t);
 static void delete_internal(BTreeNode *node, int key, int t);
 
 /* Utility helper functions */
@@ -649,26 +656,33 @@ static void borrow_from_right(BTreeNode *node, int idx) {
  * - Try borrowing from left sibling first
  * - Try borrowing from right sibling
  * - If neither works, merge with a sibling
+ *
+ * Returns: FillResult indicating what action was taken
+ *   - FILL_BORROWED: borrowed from sibling, child still at idx
+ *   - FILL_MERGED_RIGHT: merged with right sibling, child still at idx
+ *   - FILL_MERGED_LEFT: merged with left sibling, child now at idx-1
  */
-static void fill(BTreeNode *node, int idx, int t) {
+static FillResult fill(BTreeNode *node, int idx, int t) {
     /* Try borrowing from left sibling */
     if (idx > 0 && node->children[idx - 1]->n >= t) {
         borrow_from_left(node, idx);
+        return FILL_BORROWED;
     }
     /* Try borrowing from right sibling */
-    else if (idx < node->n && node->children[idx + 1]->n >= t) {
+    if (idx < node->n && node->children[idx + 1]->n >= t) {
         borrow_from_right(node, idx);
+        return FILL_BORROWED;
     }
-    /* Must merge: prefer merging with left sibling */
-    else {
-        if (idx < node->n) {
-            /* Merge with right sibling */
-            merge(node, idx, t);
-        } else {
-            /* Merge with left sibling (idx is rightmost) */
-            merge(node, idx - 1, t);
-        }
+    /* Must merge */
+    if (idx < node->n) {
+        /* Merge with right sibling: children[idx] absorbs children[idx+1] */
+        merge(node, idx, t);
+        return FILL_MERGED_RIGHT;
     }
+    /* idx == node->n: merge with left sibling */
+    /* children[idx-1] absorbs children[idx], so target moves to idx-1 */
+    merge(node, idx - 1, t);
+    return FILL_MERGED_LEFT;
 }
 
 /*
@@ -736,27 +750,23 @@ static void delete_internal(BTreeNode *node, int key, int t) {
             return;
         }
 
-        /* Determine if we need to go into the last child */
-        bool is_last_child = (idx == node->n);
-
         /*
-         * Before descending, ensure the child has at least t keys
-         * This is the proactive rebalancing step
+         * Before descending, ensure the child has at least t keys.
+         * This is the proactive rebalancing step.
          */
         if (node->children[idx]->n < t) {
-            fill(node, idx, t);
+            FillResult result = fill(node, idx, t);
+            /*
+             * If we merged with the left sibling (FILL_MERGED_LEFT),
+             * the target child has moved from idx to idx-1.
+             * For FILL_BORROWED or FILL_MERGED_RIGHT, idx stays the same.
+             */
+            if (result == FILL_MERGED_LEFT) {
+                idx--;
+            }
         }
 
-        /*
-         * After fill(), the child index might have changed due to merge.
-         * If we were going to the last child and a merge happened,
-         * we need to go to the previous child now.
-         */
-        if (is_last_child && idx > node->n) {
-            delete_internal(node->children[idx - 1], key, t);
-        } else {
-            delete_internal(node->children[idx], key, t);
-        }
+        delete_internal(node->children[idx], key, t);
     }
 }
 
@@ -1017,6 +1027,15 @@ static int validate_node(BTreeNode *node, int t, int min, int max,
 }
 
 /*
+ * btree_is_empty - Check if tree has no keys
+ *
+ * Consistent definition used by btree_count and btree_validate.
+ */
+static bool btree_is_empty(BTree *tree) {
+    return !tree || !tree->root || tree->root->n == 0;
+}
+
+/*
  * btree_validate - Verify all B-Tree invariants
  *
  * Checks:
@@ -1029,11 +1048,10 @@ static int validate_node(BTreeNode *node, int t, int min, int max,
  * Returns: 1 if valid, 0 if invalid
  */
 int btree_validate(BTree *tree) {
-    if (!tree) return 0;
-    if (!tree->root) return 0;
+    if (!tree || !tree->root) return 0;
 
-    /* Empty tree is valid */
-    if (tree->root->n == 0 && tree->root->is_leaf) {
+    /* Empty tree is valid (consistent with btree_count returning 0) */
+    if (btree_is_empty(tree)) {
         return 1;
     }
 
