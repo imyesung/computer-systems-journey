@@ -25,11 +25,11 @@
  *     - split_child(): split a full child before descending
  *     - insert_non_full(): insert into a node that has room
  *     - btree_insert(): handle root split specially
- * 
- * [ ] 4. SEARCH
+ *
+ * [x] 4. SEARCH
  *     - btree_search(): find key in tree, return node and index
- * 
- * [ ] 5. DELETE (Complex - Multiple Cases)
+ *
+ * [x] 5. DELETE (Complex - Multiple Cases)
  *     - Case 1: Key in leaf node
  *     - Case 2: Key in internal node
  *       - 2a: Replace with predecessor
@@ -39,12 +39,12 @@
  *       - 3a: Borrow from left sibling
  *       - 3b: Borrow from right sibling
  *       - 3c: Merge with sibling
- * 
- * [ ] 6. TRAVERSAL
+ *
+ * [x] 6. TRAVERSAL
  *     - btree_traverse(): in-order traversal
  *     - btree_print_debug(): visual tree structure
- * 
- * [ ] 7. UTILITY
+ *
+ * [x] 7. UTILITY
  *     - btree_height(): tree height
  *     - btree_count(): total key count
  *     - btree_validate(): check B-Tree invariants
