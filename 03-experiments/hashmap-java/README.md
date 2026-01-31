@@ -12,10 +12,15 @@ Two implementations of a chaining-based HashMap in Java 11.
 ## Features
 
 - `put(key, value)` - Insert or update
-- `get(key)` - Retrieve value
+- `get(key)` - Retrieve value (returns null if not found)
 - `remove(key)` - Delete entry
 - `containsKey(key)` - Check existence
 - Auto-resize when load factor > 0.75
+
+## Null Policy
+
+- **Keys**: null keys are **not supported** (throws `IllegalArgumentException`)
+- **Values**: null values are allowed
 
 ## Run
 

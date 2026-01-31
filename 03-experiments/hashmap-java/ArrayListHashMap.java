@@ -20,8 +20,11 @@ public class ArrayListHashMap<K, V> {
     }
 
     private int getBucketIndex(K key) {
-        // Ensure non-negative index
-        return Math.abs(key.hashCode()) % buckets.length;
+        if (key == null) {
+            throw new IllegalArgumentException("null keys not supported");
+        }
+        // floorMod handles Integer.MIN_VALUE correctly (Math.abs does not)
+        return Math.floorMod(key.hashCode(), buckets.length);
     }
 
     public void put(K key, V value) {
@@ -71,7 +74,11 @@ public class ArrayListHashMap<K, V> {
     }
 
     public boolean containsKey(K key) {
-        return get(key) != null;
+        int index = getBucketIndex(key);
+        for (Entry<K, V> entry : buckets[index]) {
+            if (entry.key.equals(key)) return true;
+        }
+        return false;
     }
 
     public int size() {

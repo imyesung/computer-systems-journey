@@ -36,6 +36,18 @@ public class HashMapTest {
         }
         System.out.println("size: " + map.size());
         map.printBuckets();
+
+        System.out.println("\n--- edge cases ---");
+        // Integer.MIN_VALUE hashCode test
+        String edgeKey = "Polygenelubricants";
+        System.out.println("hashCode of edgeKey: " + edgeKey.hashCode());
+        map.put(edgeKey, 777);
+        System.out.println("get(edgeKey): " + map.get(edgeKey));
+
+        // null value test
+        map.put("nullVal", null);
+        System.out.println("containsKey(nullVal): " + map.containsKey("nullVal"));
+        System.out.println("get(nullVal): " + map.get("nullVal"));
     }
 
     static void testDynamicArrayHashMap() {

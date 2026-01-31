@@ -18,7 +18,10 @@ public class DynamicArrayHashMap<K, V> {
     }
 
     private int getBucketIndex(K key) {
-        return Math.abs(key.hashCode()) % buckets.length;
+        if (key == null) {
+            throw new IllegalArgumentException("null keys not supported");
+        }
+        return Math.floorMod(key.hashCode(), buckets.length);
     }
 
     public void put(K key, V value) {
@@ -70,7 +73,12 @@ public class DynamicArrayHashMap<K, V> {
     }
 
     public boolean containsKey(K key) {
-        return get(key) != null;
+        int index = getBucketIndex(key);
+        DynamicArray<Entry<K, V>> bucket = buckets[index];
+        for (int i = 0; i < bucket.size(); i++) {
+            if (bucket.get(i).key.equals(key)) return true;
+        }
+        return false;
     }
 
     public int size() {
